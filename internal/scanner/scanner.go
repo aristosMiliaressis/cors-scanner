@@ -10,6 +10,7 @@ import (
 
 	"github.com/aristosMiliaressis/cors-scanner/internal/input"
 	"github.com/aristosMiliaressis/httpc/pkg/httpc"
+	"github.com/projectdiscovery/gologger"
 )
 
 type Scanner struct {
@@ -31,12 +32,9 @@ func NewScanner(conf input.Config) Scanner {
 
 func (s *Scanner) Scan() {
 
-	preflightSupport := s.testPreflightSupport()
-	s.testCRLFInjection(ACAO_SUBDOMAIN, "OPTIONS", s.Config.Url)
-	s.testCRLFInjection(ACAO_PORT, "OPTIONS", s.Config.Url)
-	s.testCRLFInjection(ACAM, "OPTIONS", "")
-	s.testCRLFInjection(ACAH, "OPTIONS", "")
+	s.FollowRedirectsToSameSiteRoot()
 
+	preflightSupport := s.testPreflightSupport()
 	if !preflightSupport {
 		s.testResponseReadCapabilities("GET")
 
@@ -298,5 +296,41 @@ func (s *Scanner) printTrustedOrigins() {
 
 	for _, stng := range settings {
 		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-aceh", Value: stng.ACEH, Modifiers: modifiers})
+	}
+}
+
+func (s *Scanner) FollowRedirectsToSameSiteRoot() {
+	i := 0
+	baseUrl, _ := url.Parse(s.Config.Url)
+	var msg *httpc.MessageDuplex
+	for {
+		req, _ := http.NewRequest("GET", baseUrl.String(), nil)
+
+		msg = s.GetResponse(req)
+		if msg.Response != nil && msg.Response.StatusCode >= 300 && msg.Response.StatusCode < 400 {
+			baseUrl, _ = msg.Response.Location()
+		} else {
+			break
+		}
+		i++
+
+		if i >= 5 {
+			if msg.Response == nil {
+				gologger.Fatal().Msgf("Received error %s when requesting landing page, exiting.", msg.TransportError)
+			}
+
+			gologger.Fatal().Msgf("Received status code %d when requesting landing page, exiting.", msg.Response.StatusCode)
+		}
+	}
+
+	msgPtr := msg
+	for {
+		s.Config.Url = msgPtr.Request.URL.String()
+
+		if msgPtr.Prev == nil {
+			break
+		}
+
+		msgPtr = msg.Prev
 	}
 }
