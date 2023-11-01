@@ -294,8 +294,8 @@ func (s *Scanner) printTrustedOrigins() {
 		}
 	}
 
-	for _, stng := range settings {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-aceh", Value: stng.ACEH, Modifiers: modifiers})
+	for _, aceh := range exposedHeaders {
+		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-aceh", Value: aceh, Modifiers: modifiers})
 	}
 }
 
