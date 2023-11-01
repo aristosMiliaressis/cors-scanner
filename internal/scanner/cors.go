@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 type CorsSettings struct {
@@ -82,6 +84,8 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 			modifiers = append(modifiers, NO_VARY)
 		}
 		s.PrintResult(Result{Type: MISCONFIG, Name: "cors-origin-reflection", Modifiers: modifiers})
+	} else if corsSettings.ACAO != "" {
+		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-origin", Value: corsSettings.ACAO, Modifiers: modifiers})
 	}
 
 	req, _ = http.NewRequest(method, s.Config.Url, nil)
@@ -104,7 +108,7 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 func (s *Scanner) testSubdomainReflection(method, origin string) bool {
 
 	originUrl, _ := url.Parse(origin)
-	origin = fmt.Sprintf("https://notexistent.%s", originUrl.Host)
+	origin = fmt.Sprintf("%s://notexistent.%s", originUrl.Scheme, originUrl.Host)
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", origin)
@@ -122,7 +126,7 @@ func (s *Scanner) testSubdomainReflection(method, origin string) bool {
 			modifiers = append(modifiers, NO_VARY)
 		}
 
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-subdomain-reflection", Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-subdomain-reflection", Modifiers: modifiers})
 		return true
 	}
 
@@ -202,7 +206,14 @@ func (s *Scanner) testS3Trust(method string) {
 }
 
 func (s *Scanner) testSubdomainReflectionBypass(method, origin string) {
-	origin = fmt.Sprintf("https://notexistent%s", origin)
+
+	originUrl, _ := url.Parse(origin)
+	apexHostname, err := publicsuffix.EffectiveTLDPlusOne(originUrl.Hostname())
+	if err != nil {
+		return
+	}
+
+	origin = fmt.Sprintf("%s://notexistent%s", originUrl.Scheme, apexHostname)
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", origin)

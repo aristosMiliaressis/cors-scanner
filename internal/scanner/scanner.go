@@ -38,7 +38,7 @@ func (s *Scanner) Scan() {
 	if !preflightSupport {
 		s.testResponseReadCapabilities("GET")
 
-		s.printTrustedOrigins()
+		s.printACEH()
 		return
 	}
 
@@ -46,7 +46,7 @@ func (s *Scanner) Scan() {
 
 	s.testAllCapabilities()
 
-	s.printTrustedOrigins()
+	s.printACEH()
 }
 
 func (s *Scanner) testPreflightSupport() bool {
@@ -55,6 +55,9 @@ func (s *Scanner) testPreflightSupport() bool {
 	req.Header.Set("Origin", "https://example.com")
 
 	msg := s.GetResponse(req)
+	if msg.Response == nil {
+		gologger.Fatal().Msg("Failed to receive a response, exiting.")
+	}
 
 	return msg.Response.StatusCode >= 200 && msg.Response.StatusCode < 300
 }
@@ -86,16 +89,15 @@ func (s *Scanner) testResponseReadCapabilities(method string) {
 			s.testCRLFInjection(ACAO_SUBDOMAIN, method, stng.ACAO)
 		}
 
-		found = s.testSuffixReflection(method, stng.ACAO)
+		found = s.testPortReflection(method, stng.ACAO)
+		s.testSuffixReflectionBypass(method, stng.ACAO)
 		if found {
-			s.testPortReflectionBypass(method, stng.ACAO)
-
 			s.testCRLFInjection(ACAO_PORT, method, stng.ACAO)
 		}
 
-		s.testS3Trust(method)
-
 		s.testRegexDotBypass(method, stng.ACAO)
+
+		s.testS3Trust(method)
 
 		if strings.HasPrefix(s.Config.Url, "https:") {
 			s.testHttpOriginTrust(method, stng.ACAO)
@@ -103,7 +105,7 @@ func (s *Scanner) testResponseReadCapabilities(method string) {
 	}
 }
 
-func (s *Scanner) testSuffixReflection(method, origin string) bool {
+func (s *Scanner) testPortReflection(method, origin string) bool {
 	originUrl, _ := url.Parse(origin)
 	originUrl.Host = fmt.Sprintf("%s:1337", originUrl.Hostname())
 
@@ -130,7 +132,7 @@ func (s *Scanner) testSuffixReflection(method, origin string) bool {
 	return false
 }
 
-func (s *Scanner) testPortReflectionBypass(method, origin string) {
+func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 	suffixedOrigin := fmt.Sprintf("%s.example.com", origin)
 
@@ -155,7 +157,7 @@ func (s *Scanner) testPortReflectionBypass(method, origin string) {
 
 	fuzzChars := []rune{
 		'.', '`', '!', '%', '_', ' ', ',', '&', '\'', '"', ';', '$',
-		'^', '*', '(', ')', '+', '=', '~', '-', '=', '|', '{', '}',
+		'^', '*', '(', ')', '+', '=', '~', '-', '=', '|', '{', '}', '@',
 		'\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08',
 		'\x0b', '\x0c', '\x0e', '\x0f', '\x10', '\x11', '\x12', '\x13', '\x14',
 		'\x15', '\x16', '\x17', '\x18', '\x19', '\x1a', '\x1b', '\x1c', '\x1d',
@@ -194,7 +196,7 @@ func (s *Scanner) testPortReflectionBypass(method, origin string) {
 
 func (s *Scanner) testHttpOriginTrust(method, origin string) {
 	originUrl, _ := url.Parse(origin)
-	originUrl.Host = fmt.Sprintf("http://%s", originUrl.Host)
+	originUrl.Scheme = "http"
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", originUrl.String())
@@ -250,40 +252,12 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 	}
 }
 
-func (s *Scanner) printTrustedOrigins() {
-	wildcards := s.Search(func(stng CorsSettings) bool {
-		return stng.ACAO == "*"
-	})
-	if len(wildcards) > 0 {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-wildcard-origin"})
-	}
-
+func (s *Scanner) printACEH() {
 	settings := s.Search(func(stng CorsSettings) bool {
-		return stng.ACAO != "*" && stng.ACAO != "null" && stng.ACAO != s.Config.Url && stng.ACAO != ""
-	})
-
-	modifiers := []ImpactModifier{}
-	trustedOrigins := []string{}
-	for _, stng := range settings {
-
-		if stng.ACAC == "true" && !Contains(modifiers, ALLOWED_CREDENTIALS) {
-			modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-		}
-
-		if !Contains(trustedOrigins, stng.ACAO) {
-			trustedOrigins = append(trustedOrigins, stng.ACAO)
-		}
-	}
-
-	for _, origin := range trustedOrigins {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-origin", Value: origin, Modifiers: modifiers})
-	}
-
-	settings = s.Search(func(stng CorsSettings) bool {
 		return stng.ACEH != ""
 	})
 
-	modifiers = []ImpactModifier{}
+	modifiers := []ImpactModifier{}
 	exposedHeaders := []string{}
 	for _, stng := range settings {
 
