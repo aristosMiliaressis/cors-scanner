@@ -66,7 +66,7 @@ func (s *Scanner) testAllCapabilities() {
 }
 
 func (s *Scanner) testResponseReadCapabilities(method string) {
-	found := s.testAribitaryOriginTrust(method)
+	found := s.testArbitaryOriginTrust(method)
 	if found {
 		s.testCRLFInjection(ACAO_SUBDOMAIN, method, s.Config.Url)
 		return
@@ -92,6 +92,8 @@ func (s *Scanner) testResponseReadCapabilities(method string) {
 
 			s.testCRLFInjection(ACAO_PORT, method, stng.ACAO)
 		}
+
+		s.testS3Trust(method)
 
 		s.testRegexDotBypass(method, stng.ACAO)
 

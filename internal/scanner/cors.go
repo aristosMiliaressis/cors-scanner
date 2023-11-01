@@ -61,7 +61,7 @@ func (s *Scanner) getCorsSettings(resp *http.Response) CorsSettings {
 	return settings
 }
 
-func (s *Scanner) testAribitaryOriginTrust(method string) bool {
+func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 
 	fullReflection := false
 
@@ -97,8 +97,6 @@ func (s *Scanner) testAribitaryOriginTrust(method string) bool {
 	if corsSettings.ACAO == "null" {
 		s.PrintResult(Result{Type: MISCONFIG, Name: "cors-null-origin", Modifiers: modifiers})
 	}
-
-	s.testS3Trust(method)
 
 	return fullReflection
 }
