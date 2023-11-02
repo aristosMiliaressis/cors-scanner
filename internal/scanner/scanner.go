@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -115,17 +116,13 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == originUrl.String() {
 		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			modifiers = append(modifiers, NO_VARY)
+			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: true})
+		} else {
+			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true"})
 		}
 
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-port-reflection", Modifiers: modifiers})
 		return true
 	}
 
@@ -134,24 +131,16 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 
 func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
-	suffixedOrigin := fmt.Sprintf("%s.example.com", origin)
+	originUrl, _ := url.Parse(origin)
+	suffixedOrigin := fmt.Sprintf("%s://%s.example.com", originUrl.Scheme, originUrl.Hostname())
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", suffixedOrigin)
 
 	msg := s.GetResponse(req)
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == suffixedOrigin {
-		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			modifiers = append(modifiers, NO_VARY)
-		}
-
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-port-reflection-suffix-bypass", Value: corsSettings.ACAO, Modifiers: modifiers})
+		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 		return
 	}
 
@@ -168,25 +157,21 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 	for _, char := range fuzzChars {
 		req, _ := http.NewRequest(method, s.Config.Url, nil)
-		req.Header.Set("Origin", fmt.Sprintf("%s%s.example.com", origin, string(char)))
+		req.Header.Set("Origin", fmt.Sprintf("%s://%s%s.example.com", originUrl.Scheme, originUrl.Hostname(), string(char)))
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			msg := s.GetResponse(req)
+			rawReq, _ := httputil.DumpRequest(req, true)
+			msg := s.Client.SendRaw(string(rawReq), s.Config.Url)
+			<-msg.Resolved
+
 			corsSettings := s.getCorsSettings(msg.Response)
-			modifiers := []ImpactModifier{}
-			if corsSettings.ACAC == "true" {
-				modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-			}
-
 			if corsSettings.ACAO == suffixedOrigin {
-				if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-					modifiers = append(modifiers, NO_VARY)
-				}
-
-				s.PrintResult(Result{Type: CAPABILITY, Name: "cors-port-reflection-suffix-bypass", Value: corsSettings.ACAO, Modifiers: modifiers})
+				s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass",
+					Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true",
+					MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 				return
 			}
 		}()
@@ -204,13 +189,8 @@ func (s *Scanner) testHttpOriginTrust(method, origin string) {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == originUrl.String() {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-http-origin-trust", Value: corsSettings.ACAO, Modifiers: modifiers})
+		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-http-origin-trust", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
 	}
 }
 
@@ -237,17 +217,8 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 		msg := s.GetResponse(req)
 
 		corsSettings := s.getCorsSettings(msg.Response)
-		modifiers := []ImpactModifier{}
-		if corsSettings.ACAC == "true" {
-			modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-		}
-
 		if corsSettings.ACAO == newOrigin {
-			if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-				modifiers = append(modifiers, NO_VARY)
-			}
-
-			s.PrintResult(Result{Type: CAPABILITY, Name: "cors-regex-dot-bypass", Modifiers: modifiers})
+			s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-regex-dot-bypass", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 		}
 	}
 }
@@ -257,12 +228,12 @@ func (s *Scanner) printACEH() {
 		return stng.ACEH != ""
 	})
 
-	modifiers := []ImpactModifier{}
 	exposedHeaders := []string{}
+	allowedCreds := false
 	for _, stng := range settings {
 
-		if stng.ACAC == "true" && !Contains(modifiers, ALLOWED_CREDENTIALS) {
-			modifiers = append(modifiers, ALLOWED_CREDENTIALS)
+		if stng.ACAC == "true" {
+			allowedCreds = true
 		}
 
 		if !Contains(exposedHeaders, stng.ACEH) {
@@ -271,7 +242,7 @@ func (s *Scanner) printACEH() {
 	}
 
 	for _, aceh := range exposedHeaders {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-aceh", Value: aceh, Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "aceh-fixed", Value: aceh, AllowedCredentials: allowedCreds})
 	}
 }
 

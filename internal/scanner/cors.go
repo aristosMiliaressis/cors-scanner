@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -21,21 +20,6 @@ type CorsSettings struct {
 	Vary string
 }
 
-type ImpactModifier int
-
-const (
-	ALLOWED_CREDENTIALS ImpactModifier = iota
-	NO_VARY
-)
-
-func (c ImpactModifier) String() string {
-	return []string{"allowed-credentials", "no-vary"}[c]
-}
-
-func (c ImpactModifier) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.String())
-}
-
 type ReflectionPosition int
 
 const (
@@ -50,6 +34,10 @@ func (c ReflectionPosition) String() string {
 }
 
 func (s *Scanner) getCorsSettings(resp *http.Response) CorsSettings {
+	if resp == nil {
+		return CorsSettings{}
+	}
+
 	settings := CorsSettings{
 		ACAO: resp.Header.Get("Access-Control-Allow-Origin"),
 		ACAC: resp.Header.Get("Access-Control-Allow-Credentials"),
@@ -73,19 +61,13 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == "https://example.com" {
 		fullReflection = true
-		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			modifiers = append(modifiers, NO_VARY)
-		}
-		s.PrintResult(Result{Type: MISCONFIG, Name: "cors-origin-reflection", Modifiers: modifiers})
+		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+	} else if corsSettings.ACAO == "*" {
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-wildcard", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
 	} else if corsSettings.ACAO != "" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-fixed-origin", Value: corsSettings.ACAO, Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-fixed", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
 	}
 
 	req, _ = http.NewRequest(method, s.Config.Url, nil)
@@ -94,12 +76,8 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 	msg = s.GetResponse(req)
 
 	corsSettings = s.getCorsSettings(msg.Response)
-	if corsSettings.ACAC == "true" {
-		modifiers = []ImpactModifier{ALLOWED_CREDENTIALS}
-	}
-
 	if corsSettings.ACAO == "null" {
-		s.PrintResult(Result{Type: MISCONFIG, Name: "cors-null-origin", Modifiers: modifiers})
+		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-null", AllowedCredentials: corsSettings.ACAC == "true"})
 	}
 
 	return fullReflection
@@ -116,17 +94,13 @@ func (s *Scanner) testSubdomainReflection(method, origin string) bool {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == origin {
 		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			modifiers = append(modifiers, NO_VARY)
+			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-subdomain-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: true})
+		} else {
+			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-subdomain-reflection", AllowedCredentials: corsSettings.ACAC == "true"})
 		}
 
-		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-subdomain-reflection", Modifiers: modifiers})
 		return true
 	}
 
@@ -158,17 +132,8 @@ func (s *Scanner) testS3Trust(method string) {
 			msg := s.GetResponse(req)
 
 			corsSettings := s.getCorsSettings(msg.Response)
-			modifiers := []ImpactModifier{}
-			if corsSettings.ACAC == "true" {
-				modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-			}
-
 			if corsSettings.ACAO == origin {
-				if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-					modifiers = append(modifiers, NO_VARY)
-				}
-
-				s.PrintResult(Result{Type: CAPABILITY, Name: "cors-all-s3-buckets-trusted", Value: origin, Modifiers: modifiers})
+				s.PrintResult(Result{Type: MISCONFIG, Name: "acao-s3-trust", Value: origin, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 			}
 		}()
 	}
@@ -187,17 +152,8 @@ func (s *Scanner) testS3Trust(method string) {
 			msg := s.GetResponse(req)
 
 			corsSettings := s.getCorsSettings(msg.Response)
-			modifiers := []ImpactModifier{}
-			if corsSettings.ACAC == "true" {
-				modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-			}
-
 			if corsSettings.ACAO == origin {
-				if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-					modifiers = append(modifiers, NO_VARY)
-				}
-
-				s.PrintResult(Result{Type: CAPABILITY, Name: "cors-all-s3-buckets-trusted", Value: origin, Modifiers: modifiers})
+				s.PrintResult(Result{Type: MISCONFIG, Name: "acao-s3-trust", Value: origin, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 			}
 		}()
 	}
@@ -221,17 +177,8 @@ func (s *Scanner) testSubdomainReflectionBypass(method, origin string) {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAO == origin {
-		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			modifiers = append(modifiers, NO_VARY)
-		}
-
-		s.PrintResult(Result{Type: VULNERABILITY, Name: "cors-subdomain-reflection-prefix-bypass", Modifiers: modifiers})
+		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-subdomain-reflection-prefix-bypass", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 	}
 }
 
@@ -261,12 +208,7 @@ func (s *Scanner) testCRLFInjection(pos ReflectionPosition, method, origin strin
 		responseBytes, _ := httputil.DumpResponse(msg.Response, false)
 		if strings.Contains(string(responseBytes), fmt.Sprintf("ABCDE%sFGHIJ", string(char))) ||
 			strings.Contains(string(responseBytes), fmt.Sprintf(":13%s37", string(char))) {
-			modifiers := []ImpactModifier{}
-			if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-				modifiers = append(modifiers, NO_VARY)
-			}
-
-			s.PrintResult(Result{Type: VULNERABILITY, Name: fmt.Sprintf("%s-crlf-injection", pos), Modifiers: modifiers})
+			s.PrintResult(Result{Type: VULNERABILITY, Name: fmt.Sprintf("%s-crlf-injection", pos), AllowedCredentials: corsSettings.ACAC == "true"})
 		}
 	}
 }
@@ -285,23 +227,14 @@ func (s *Scanner) testRequestSendCapabilities() {
 	msg := s.GetResponse(req)
 
 	corsSettings := s.getCorsSettings(msg.Response)
-	modifiers := []ImpactModifier{}
-	if corsSettings.ACAC == "true" {
-		modifiers = append(modifiers, ALLOWED_CREDENTIALS)
-	}
-
 	if corsSettings.ACAM == "PUT" {
-		if !strings.Contains(strings.ToLower(corsSettings.Vary), "access-control-request-method") {
-			modifiers = append(modifiers, NO_VARY)
-		}
-
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acam-reflection", Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acam-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "access-control-request-method")})
 
 		s.testCRLFInjection(ACAM, "OPTIONS", "")
 	} else if corsSettings.ACAM == "*" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acam-wildcard", Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acam-wildcard", AllowedCredentials: corsSettings.ACAC == "true"})
 	} else if corsSettings.ACAM != "" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acam-fixed", Value: corsSettings.ACAM, Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acam-fixed", Value: corsSettings.ACAM, AllowedCredentials: corsSettings.ACAC == "true"})
 	}
 
 	req, _ = http.NewRequest("OPTIONS", s.Config.Url, nil)
@@ -311,21 +244,13 @@ func (s *Scanner) testRequestSendCapabilities() {
 	msg = s.GetResponse(req)
 
 	corsSettings = s.getCorsSettings(msg.Response)
-	if corsSettings.ACAC == "true" {
-		modifiers = []ImpactModifier{ALLOWED_CREDENTIALS}
-	}
-
 	if corsSettings.ACAH == "x-test" {
-		if !strings.Contains(strings.ToLower(corsSettings.Vary), "access-control-request-headers") {
-			modifiers = append(modifiers, NO_VARY)
-		}
-
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acah-reflection", Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acah-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "access-control-request-headers")})
 
 		s.testCRLFInjection(ACAH, "OPTIONS", "")
 	} else if corsSettings.ACAH == "*" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acah-wildcard", Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acah-wildcard", AllowedCredentials: corsSettings.ACAC == "true"})
 	} else if corsSettings.ACAH != "" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "cors-acah-fixed", Value: corsSettings.ACAH, Modifiers: modifiers})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acah-fixed", Value: corsSettings.ACAH, AllowedCredentials: corsSettings.ACAC == "true"})
 	}
 }

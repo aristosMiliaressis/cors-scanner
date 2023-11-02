@@ -7,10 +7,11 @@ import (
 )
 
 type Result struct {
-	Type      ResultType
-	Name      string
-	Value     string           `json:",omitempty"`
-	Modifiers []ImpactModifier `json:",omitempty"`
+	Type               ResultType
+	Name               string
+	Value              string `json:",omitempty"`
+	AllowedCredentials bool
+	MissingVary        bool `json:",omitempty"`
 }
 
 type ResultType int

@@ -35,7 +35,7 @@ func (scnr *Scanner) Search(where func(s CorsSettings) bool) []CorsSettings {
 	return found
 }
 
-func Contains[T string | ImpactModifier](s []T, e T) bool {
+func Contains[T string](s []T, e T) bool {
 	for _, a := range s {
 		if a == e {
 			return true
