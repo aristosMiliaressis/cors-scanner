@@ -53,8 +53,6 @@ func (s *Scanner) getCorsSettings(resp *http.Response) CorsSettings {
 
 func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 
-	fullReflection := false
-
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", "https://example.com")
 
@@ -62,10 +60,10 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 
 	corsSettings := s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == "https://example.com" {
-		fullReflection = true
 		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+		return true
 	} else if corsSettings.ACAO == "*" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-wildcard", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
+		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-wildcard", AllowedCredentials: corsSettings.ACAC == "true"})
 	} else if corsSettings.ACAO != "" {
 		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-fixed", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
 	}
@@ -78,9 +76,10 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 	corsSettings = s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == "null" {
 		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-null", AllowedCredentials: corsSettings.ACAC == "true"})
+		return true
 	}
 
-	return fullReflection
+	return false
 }
 
 func (s *Scanner) testSubdomainReflection(method, origin string) bool {

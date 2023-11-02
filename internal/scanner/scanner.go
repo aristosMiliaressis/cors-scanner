@@ -12,6 +12,7 @@ import (
 	"github.com/aristosMiliaressis/cors-scanner/internal/input"
 	"github.com/aristosMiliaressis/httpc/pkg/httpc"
 	"github.com/projectdiscovery/gologger"
+	"golang.org/x/net/publicsuffix"
 )
 
 type Scanner struct {
@@ -197,8 +198,12 @@ func (s *Scanner) testHttpOriginTrust(method, origin string) {
 func (s *Scanner) testRegexDotBypass(method, origin string) {
 
 	originUrl, _ := url.Parse(origin)
+	apexHostname, err := publicsuffix.EffectiveTLDPlusOne(originUrl.Hostname())
+	if err != nil {
+		return
+	}
 
-	for i := 0; i < strings.Count(originUrl.Hostname(), "."); i++ {
+	for i := strings.Count(originUrl.Hostname(), ".") - strings.Count(apexHostname, ".") - 1; i < strings.Count(originUrl.Hostname(), "."); i++ {
 		parts := strings.Split(originUrl.Hostname(), ".")
 		newOrigin := ""
 
@@ -218,7 +223,7 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 
 		corsSettings := s.getCorsSettings(msg.Response)
 		if corsSettings.ACAO == newOrigin {
-			s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-regex-dot-bypass", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+			s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-regex-dot-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
 		}
 	}
 }
