@@ -2,6 +2,9 @@ EXECUTABLE=cors-scanner
 WINDOWS=$(EXECUTABLE).exe
 LINUX=$(EXECUTABLE)
 
+install: build
+	mv $(LINUX) ${GOPATH}/bin
+
 build: windows linux
 
 windows:

@@ -204,6 +204,10 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 	}
 
 	for i := strings.Count(originUrl.Hostname(), ".") - strings.Count(apexHostname, ".") - 1; i < strings.Count(originUrl.Hostname(), "."); i++ {
+		if i == -1 {
+			i = 0
+		}
+
 		parts := strings.Split(originUrl.Hostname(), ".")
 		newOrigin := ""
 

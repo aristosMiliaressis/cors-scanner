@@ -36,7 +36,6 @@ cors-scanner
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.comevil.com                       | Access-Control-Allow-Origin: https://target.comevil.com                       |
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.com`<special_char>`.evil.com      | Access-Control-Allow-Origin: https://target.com`<special_char>`.evil.com      |
 
-
 **To Do**
 - dynamic header generation without vary
 - Unicode normalization bypasses?
