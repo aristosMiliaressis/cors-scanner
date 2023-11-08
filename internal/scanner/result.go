@@ -2,8 +2,7 @@ package scanner
 
 import (
 	"encoding/json"
-
-	"github.com/projectdiscovery/gologger"
+	"fmt"
 )
 
 type Result struct {
@@ -33,5 +32,5 @@ func (c ResultType) MarshalJSON() ([]byte, error) {
 func (s *Scanner) PrintResult(r Result) {
 	jsonResult, _ := json.Marshal(r)
 
-	gologger.Print().Msg(string(jsonResult))
+	fmt.Println(string(jsonResult))
 }
