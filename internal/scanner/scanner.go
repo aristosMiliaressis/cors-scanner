@@ -118,10 +118,15 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 
 	corsSettings := s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == originUrl.String() {
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
 		if !strings.Contains(strings.ToLower(corsSettings.Vary), "origin") {
-			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: true})
+			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: true, POC: poc})
 		} else {
-			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true"})
+			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-port-reflection", AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
 		}
 
 		return true
@@ -141,7 +146,12 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 	msg := s.GetResponse(req)
 	corsSettings := s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == suffixedOrigin {
-		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
+		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
 		return
 	}
 
@@ -170,9 +180,13 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 			corsSettings := s.getCorsSettings(msg.Response)
 			if corsSettings.ACAO == suffixedOrigin {
+				rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+				poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
 				s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass",
 					Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true",
-					MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+					MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
 				return
 			}
 		}()
@@ -191,7 +205,11 @@ func (s *Scanner) testHttpOriginTrust(method, origin string) {
 
 	corsSettings := s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == originUrl.String() {
-		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-http-origin-trust", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true"})
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-http-origin-trust", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
 	}
 }
 
@@ -203,7 +221,7 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 		return
 	}
 
-	for i := strings.Count(originUrl.Hostname(), ".") - strings.Count(apexHostname, ".") - 1; i < strings.Count(originUrl.Hostname(), "."); i++ {
+	for i := strings.Count(originUrl.Hostname(), ".") - strings.Count(apexHostname, ".") - 1; i <= strings.Count(originUrl.Hostname(), ".")-1; i++ {
 		if i == -1 {
 			i = 0
 		}
@@ -220,6 +238,7 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 			newOrigin += "." + strings.Join(parts[(i+2):], ".")
 		}
 
+		fmt.Println(newOrigin)
 		req, _ := http.NewRequest(method, s.Config.Url, nil)
 		req.Header.Set("Origin", newOrigin)
 
@@ -227,7 +246,12 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 
 		corsSettings := s.getCorsSettings(msg.Response)
 		if corsSettings.ACAO == newOrigin {
-			s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-regex-dot-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin")})
+			rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+			rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+			poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
+			s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-regex-dot-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
 		}
 	}
 }

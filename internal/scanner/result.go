@@ -10,7 +10,8 @@ type Result struct {
 	Name               string
 	Value              string `json:",omitempty"`
 	AllowedCredentials bool
-	MissingVary        bool `json:",omitempty"`
+	MissingVary        bool   `json:",omitempty"`
+	POC                string `json:",omitempty"`
 }
 
 type ResultType int
@@ -30,6 +31,10 @@ func (c ResultType) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Scanner) PrintResult(r Result) {
+	if !s.Config.IncludePOC {
+		r.POC = ""
+	}
+
 	jsonResult, _ := json.Marshal(r)
 
 	fmt.Println(string(jsonResult))
