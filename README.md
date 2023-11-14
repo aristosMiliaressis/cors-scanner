@@ -36,21 +36,3 @@ cors-scanner
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.comevil.com                       | Access-Control-Allow-Origin: https://target.comevil.com                       |
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.com`<special_char>`.evil.com      | Access-Control-Allow-Origin: https://target.com`<special_char>`.evil.com      |
 
-**To Do**
-- dynamic header generation without vary
-- Unicode normalization bypasses?
-
-### Extra Checks that Require Server-side Cache Poisoning
-
-Allowed subdomain Bypass
-- [ ] https://evil.com/example.com
-- [ ] https://evil.com//example.com
-- [ ] https://evil.com/://example.com
-- [ ] https://evil.com/.example.com
-- [ ] https://evil.com//.example.com
-- [ ] https://evil.com/://.example.com
-
-Allowed port Bypass
-- [ ] https://example.com@evil.com
-- [ ] https://example.com:@evil.com
-
