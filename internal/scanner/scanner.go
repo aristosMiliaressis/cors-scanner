@@ -238,7 +238,6 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 			newOrigin += "." + strings.Join(parts[(i+2):], ".")
 		}
 
-		fmt.Println(newOrigin)
 		req, _ := http.NewRequest(method, s.Config.Url, nil)
 		req.Header.Set("Origin", newOrigin)
 
