@@ -24,6 +24,7 @@ func ParseCliFlags() (Config, error) {
 
 	dfltOpts := Config{}
 	dfltOpts.Http = httpc.DefaultOptions
+	dfltOpts.Http.Performance.ReplayRateLimitted = false
 	var headers goflags.StringSlice
 
 	flagSet := goflags.NewFlagSet()
