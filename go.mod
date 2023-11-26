@@ -3,7 +3,7 @@ module github.com/aristosMiliaressis/cors-scanner
 go 1.20
 
 require (
-	github.com/aristosMiliaressis/httpc v0.0.0-20231125160459-b71a3d5b624a
+	github.com/aristosMiliaressis/httpc v0.0.0-20231126093704-bba880dfb82e
 	github.com/projectdiscovery/goflags v0.1.25
 	github.com/projectdiscovery/gologger v1.1.11
 )
