@@ -61,7 +61,8 @@ func (s *Scanner) testPreflightSupport() bool {
 		gologger.Fatal().Msg("Failed to receive a response, exiting.")
 	}
 
-	return msg.Response.StatusCode >= 200 && msg.Response.StatusCode < 300
+	return msg.Response.StatusCode >= 200 && msg.Response.StatusCode < 300 &&
+		msg.Response.Header.Get("Access-Control-Allow-Origin") != ""
 }
 
 func (s *Scanner) testAllCapabilities() {
