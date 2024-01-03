@@ -1,6 +1,7 @@
 EXECUTABLE=cors-scanner
 WINDOWS=$(EXECUTABLE).exe
 LINUX=$(EXECUTABLE)
+GIT_HASH=$(shell git rev-parse --short HEAD)
 
 install: build
 	mv $(LINUX) ${GOPATH}/bin
@@ -8,10 +9,10 @@ install: build
 build: windows linux
 
 windows:
-	env GOOS=windows go build -v -o $(WINDOWS) -ldflags="-s -w" ./cmd/cors-scanner/main.go
+	env GOOS=windows go build -v -o $(WINDOWS) -ldflags="-s -w -X main.git_hash=${GIT_HASH}" ./cmd/cors-scanner/main.go
 	
 linux:
-	env GOOS=linux go build -v -o $(LINUX) -ldflags="-s -w" ./cmd/cors-scanner/main.go
+	env GOOS=linux go build -v -o $(LINUX) -ldflags="-s -w -X main.git_hash=${GIT_HASH}" ./cmd/cors-scanner/main.go
 
 clean:
 	rm -f $(WINDOWS) $(LINUX) 
