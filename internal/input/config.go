@@ -24,6 +24,7 @@ func ParseCliFlags(git_hash string) (Config, error) {
 
 	dfltOpts := Config{}
 	dfltOpts.Http = httpc.DefaultOptions
+	dfltOpts.Http.ErrorHandling.PercentageThreshold = 0
 	var headers goflags.StringSlice
 
 	flagSet := goflags.NewFlagSet()
