@@ -49,6 +49,10 @@ func (s *Scanner) Scan() {
 	s.testAllCapabilities()
 
 	s.printACEH()
+
+	if len(s.Config.Origins) != 0 {
+		s.bruteforceOrigins()
+	}
 }
 
 func (s *Scanner) testPreflightSupport() bool {
@@ -312,5 +316,42 @@ func (s *Scanner) FollowRedirectsToSameSiteRoot() {
 		}
 
 		msgPtr = msg.Prev
+	}
+}
+
+func (s *Scanner) bruteforceOrigins() {
+	var wg sync.WaitGroup
+	for _, origin := range s.Config.Origins {
+		if origin == "" {
+			continue
+		}
+
+		lOrigin := origin
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			s.testOriginTrust(lOrigin)
+		}()
+	}
+	wg.Wait()
+}
+
+func (s *Scanner) testOriginTrust(origin string) {
+	originUrl, _ := url.Parse(origin)
+
+	req, _ := http.NewRequest("GET", s.Config.Url, nil)
+	req.Header.Set("Origin", originUrl.String())
+
+	msg := s.GetResponse(req)
+
+	corsSettings := s.getCorsSettings(msg.Response)
+	if corsSettings.ACAO == originUrl.String() {
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-http-origin-trust", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
 	}
 }

@@ -3,6 +3,7 @@ package input
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/aristosMiliaressis/httpc/pkg/httpc"
@@ -15,6 +16,7 @@ const version = "1.0.0"
 
 type Config struct {
 	Url        string
+	Origins    []string
 	Debug      bool
 	IncludePOC bool
 	Http       httpc.ClientOptions
@@ -26,12 +28,14 @@ func ParseCliFlags() (Config, error) {
 	dfltOpts.Http = httpc.DefaultOptions
 	dfltOpts.Http.ErrorHandling.PercentageThreshold = 0
 	var headers goflags.StringSlice
+	var originsFile string
 
 	flagSet := goflags.NewFlagSet()
 	flagSet.SetDescription("CORS Scanner v" + version)
 
 	flagSet.CreateGroup("general", "General",
 		flagSet.StringVarP(&dfltOpts.Url, "url", "u", "", "Base Url to scan."),
+		flagSet.StringVarP(&originsFile, "file", "f", originsFile, "List of origins to bruteforce"),
 		flagSet.StringVarP(&dfltOpts.Http.Connection.ProxyUrl, "proxy", "x", dfltOpts.Http.Connection.ProxyUrl, "Proxy URL. For example: http://127.0.0.1:8080"),
 		flagSet.StringSliceVarP(&headers, "header", "H", nil, "Add request header.", goflags.FileStringSliceOptions),
 		flagSet.BoolVarP(&dfltOpts.Debug, "debug", "d", false, "Enable debug logging."),
@@ -61,9 +65,25 @@ func ParseCliFlags() (Config, error) {
 		}
 	}
 
+	dfltOpts.Origins, err = ReadWordlist(originsFile)
+	if err != nil {
+		gologger.Fatal().Msgf("Failed to read hostname file: %s", err)
+	}
+
 	if dfltOpts.Debug {
 		gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
 	}
 
 	return dfltOpts, nil
+}
+
+func ReadWordlist(file string) ([]string, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.Replace(string(data), "\r", "", -1), "\n")
+
+	return lines, nil
 }
