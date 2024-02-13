@@ -8,10 +8,10 @@ install: build
 build: windows linux
 
 windows:
-	env GOOS=windows go build -v -o $(WINDOWS) -ldflags="-s -w" ./cmd/cors-scanner/main.go
+	env GOOS=windows go build -v -o $(WINDOWS) -ldflags="-s -w" .
 	
 linux:
-	env GOOS=linux go build -v -o $(LINUX) -ldflags="-s -w" ./cmd/cors-scanner/main.go
+	env GOOS=linux go build -v -o $(LINUX) -ldflags="-s -w" .
 
 clean:
 	rm -f $(WINDOWS) $(LINUX) 
