@@ -22,7 +22,7 @@ type Config struct {
 	Http       httpc.ClientOptions
 }
 
-func ParseCliFlags() (Config, error) {
+func ParseCliFlags(git_hash string) (Config, error) {
 
 	dfltOpts := Config{}
 	dfltOpts.Http = httpc.DefaultOptions
@@ -31,7 +31,7 @@ func ParseCliFlags() (Config, error) {
 	var originsFile string
 
 	flagSet := goflags.NewFlagSet()
-	flagSet.SetDescription("CORS Scanner v" + version)
+	flagSet.SetDescription("CORS Scanner v" + version + "+" + git_hash)
 
 	flagSet.CreateGroup("general", "General",
 		flagSet.StringVarP(&dfltOpts.Url, "url", "u", "", "Base Url to scan."),
