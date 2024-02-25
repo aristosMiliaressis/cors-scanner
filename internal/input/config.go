@@ -54,20 +54,23 @@ func ParseCliFlags(git_hash string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid url provided: %s", err)
 	}
 
-	_, err = url.Parse(dfltOpts.Http.Connection.ProxyUrl)
-	if err != nil && dfltOpts.Http.Connection.ProxyUrl != "" {
-		return Config{}, fmt.Errorf("invalid proxy url provided: %s", err)
-	}
-
 	for _, v := range headers {
 		if headerParts := strings.SplitN(v, ":", 2); len(headerParts) >= 2 {
 			dfltOpts.Http.DefaultHeaders[strings.Trim(headerParts[0], " ")] = strings.Trim(headerParts[1], " ")
 		}
 	}
 
-	dfltOpts.Origins, err = ReadWordlist(originsFile)
+	if originsFile != "" {
+		dfltOpts.Origins, err = ReadWordlist(originsFile)
+	}
+	
 	if err != nil {
 		gologger.Fatal().Msgf("Failed to read hostname file: %s", err)
+	}
+	
+	_, err = url.Parse(dfltOpts.Http.Connection.ProxyUrl)
+	if err != nil && dfltOpts.Http.Connection.ProxyUrl != "" {
+		return Config{}, fmt.Errorf("invalid proxy url provided: %s", err)
 	}
 
 	if dfltOpts.Debug {
