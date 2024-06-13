@@ -57,28 +57,29 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 	req.Header.Set("Origin", "https://example.com")
 
 	msg := s.GetResponse(req)
+	if msg.Response != nil {
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
 
-	rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
-	rawResp, _ := httputil.DumpResponse(msg.Response, true)
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
 
-	poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
-
-	corsSettings := s.getCorsSettings(msg.Response)
-	if corsSettings.ACAO == "https://example.com" {
-		s.PrintResult(Result{Type: MISCONFIG, Name: "acao-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
-		return true
-	} else if corsSettings.ACAO == "*" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-wildcard", AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
-	} else if corsSettings.ACAO != "" {
-		s.PrintResult(Result{Type: CAPABILITY, Name: "acao-fixed", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
+		corsSettings := s.getCorsSettings(msg.Response)
+		if corsSettings.ACAO == "https://example.com" {
+			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
+			return true
+		} else if corsSettings.ACAO == "*" {
+			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-wildcard", AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
+		} else if corsSettings.ACAO != "" {
+			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-fixed", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
+		}
 	}
-
+	
 	req, _ = http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", "null")
 
 	msg = s.GetResponse(req)
 
-	corsSettings = s.getCorsSettings(msg.Response)
+	corsSettings := s.getCorsSettings(msg.Response)
 	if corsSettings.ACAO == "null" {
 		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
 		rawResp, _ := httputil.DumpResponse(msg.Response, true)

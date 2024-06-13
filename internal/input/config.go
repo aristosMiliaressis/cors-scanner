@@ -26,6 +26,7 @@ func ParseCliFlags(git_hash string) (Config, error) {
 
 	dfltOpts := Config{}
 	dfltOpts.Http = httpc.DefaultOptions
+	dfltOpts.Http.Redirection.FollowRedirects = false
 	dfltOpts.Http.ErrorHandling.PercentageThreshold = 0
 	var headers goflags.StringSlice
 	var originsFile string
