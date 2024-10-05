@@ -58,7 +58,7 @@ func (s *Scanner) Scan() {
 func (s *Scanner) testPreflightSupport() bool {
 
 	req, _ := http.NewRequest("OPTIONS", s.Config.Url, nil)
-	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Origin", s.Config.BaseOrigin)
 
 	msg := s.GetResponse(req)
 	if msg.Response == nil {
@@ -143,7 +143,7 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 	originUrl, _ := url.Parse(origin)
-	suffixedOrigin := fmt.Sprintf("%s://%s.example.com", originUrl.Scheme, originUrl.Hostname())
+	suffixedOrigin := fmt.Sprintf("%s://%s.%s", originUrl.Scheme, originUrl.Hostname(), s.Config.BaseOrigin)
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", suffixedOrigin)
@@ -173,7 +173,7 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 	for _, char := range fuzzChars {
 		req, _ := http.NewRequest(method, s.Config.Url, nil)
-		req.Header.Set("Origin", fmt.Sprintf("%s://%s%s.example.com", originUrl.Scheme, originUrl.Hostname(), string(char)))
+		req.Header.Set("Origin", fmt.Sprintf("%s://%s%s.%s", originUrl.Scheme, originUrl.Hostname(), string(char), originUrl.Hostname()))
 
 		wg.Add(1)
 		go func() {

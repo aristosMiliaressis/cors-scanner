@@ -7,6 +7,7 @@ import (
 
 type Result struct {
 	Type               ResultType
+	Url                string
 	Name               string
 	Value              string `json:",omitempty"`
 	AllowedCredentials bool
@@ -35,6 +36,7 @@ func (s *Scanner) PrintResult(r Result) {
 		r.POC = ""
 	}
 
+	r.Url = s.Config.Url
 	jsonResult, _ := json.Marshal(r)
 
 	fmt.Println(string(jsonResult))

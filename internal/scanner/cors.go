@@ -54,7 +54,7 @@ func (s *Scanner) getCorsSettings(resp *http.Response) CorsSettings {
 func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
-	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Origin", s.Config.BaseOrigin)
 
 	msg := s.GetResponse(req)
 	if msg.Response != nil {
@@ -64,7 +64,7 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
 
 		corsSettings := s.getCorsSettings(msg.Response)
-		if corsSettings.ACAO == "https://example.com" {
+		if corsSettings.ACAO == s.Config.BaseOrigin {
 			s.PrintResult(Result{Type: MISCONFIG, Name: "acao-reflection", AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
 			return true
 		} else if corsSettings.ACAO == "*" {
@@ -73,7 +73,7 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 			s.PrintResult(Result{Type: CAPABILITY, Name: "acao-fixed", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
 		}
 	}
-	
+
 	req, _ = http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", "null")
 
@@ -247,7 +247,7 @@ func (s *Scanner) testCRLFInjection(pos ReflectionPosition, method, origin strin
 
 func (s *Scanner) testRequestSendCapabilities() {
 
-	trustedOrigin := "https://example.com"
+	trustedOrigin := s.Config.BaseOrigin
 	if len(s.corsSettings) != 0 {
 		trustedOrigin = s.corsSettings[0].ACAO
 	}
