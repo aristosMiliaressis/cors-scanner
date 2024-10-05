@@ -58,7 +58,7 @@ func (s *Scanner) Scan() {
 func (s *Scanner) testPreflightSupport() bool {
 
 	req, _ := http.NewRequest("OPTIONS", s.Config.Url, nil)
-	req.Header.Set("Origin", s.Config.BaseOrigin)
+	req.Header.Set("Origin", fmt.Sprintf("https://%s", s.Config.BaseOrigin))
 
 	msg := s.GetResponse(req)
 	if msg.Response == nil {

@@ -39,7 +39,7 @@ func ParseCliFlags(git_hash string) (Config, error) {
 		flagSet.StringVarP(&dfltOpts.Url, "url", "u", "", "Base Url to scan."),
 		flagSet.StringVarP(&originsFile, "file", "f", originsFile, "List of origins to bruteforce"),
 		flagSet.StringVarP(&dfltOpts.Http.Connection.ProxyUrl, "proxy", "x", dfltOpts.Http.Connection.ProxyUrl, "Proxy URL. For example: http://127.0.0.1:8080"),
-		flagSet.StringVarP(&dfltOpts.BaseOrigin, "origin", "o", "https://example.com", "Default origin"),
+		flagSet.StringVarP(&dfltOpts.BaseOrigin, "origin", "o", "example.com", "Default origin"),
 		flagSet.StringSliceVarP(&headers, "header", "H", nil, "Add request header.", goflags.FileStringSliceOptions),
 		flagSet.BoolVarP(&dfltOpts.Debug, "debug", "d", false, "Enable debug logging."),
 		flagSet.BoolVarP(&dfltOpts.IncludePOC, "poc", "p", false, "Include POC Request/Response in output."),
