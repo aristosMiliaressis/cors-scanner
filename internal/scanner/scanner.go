@@ -58,7 +58,7 @@ func (s *Scanner) Scan() {
 func (s *Scanner) testPreflightSupport() bool {
 
 	req, _ := http.NewRequest("OPTIONS", s.Config.Url, nil)
-	req.Header.Set("Origin", fmt.Sprintf("https://%s", s.Config.BaseOrigin))
+	req.Header.Set("Origin", "https://example.com")
 
 	msg := s.GetResponse(req)
 	if msg.Response == nil {
@@ -143,7 +143,7 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 
 	originUrl, _ := url.Parse(origin)
-	suffixedOrigin := fmt.Sprintf("%s://%s.%s", originUrl.Scheme, originUrl.Hostname(), s.Config.BaseOrigin)
+	suffixedOrigin := fmt.Sprintf("%s://%s.example.com", originUrl.Scheme, originUrl.Hostname())
 
 	req, _ := http.NewRequest(method, s.Config.Url, nil)
 	req.Header.Set("Origin", suffixedOrigin)
@@ -157,6 +157,36 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
 
 		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-port-reflection-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
+		return
+	}
+
+	req, _ = http.NewRequest(method, s.Config.Url, nil)
+	req.Header.Set("Origin", "http://localhost.example.com")
+
+	msg = s.GetResponse(req)
+	corsSettings = s.getCorsSettings(msg.Response)
+	if corsSettings.ACAO == suffixedOrigin {
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
+		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-localhost-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
+		return
+	}
+
+	req, _ = http.NewRequest(method, s.Config.Url, nil)
+	req.Header.Set("Origin", "https://localhost.example.com")
+
+	msg = s.GetResponse(req)
+	corsSettings = s.getCorsSettings(msg.Response)
+	if corsSettings.ACAO == suffixedOrigin {
+		rawReq, _ := httputil.DumpRequestOut(msg.Response.Request, true)
+		rawResp, _ := httputil.DumpResponse(msg.Response, true)
+
+		poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(rawResp))
+
+		s.PrintResult(Result{Type: VULNERABILITY, Name: "acao-localhost-suffix-bypass", Value: corsSettings.ACAO, AllowedCredentials: corsSettings.ACAC == "true", MissingVary: !strings.Contains(strings.ToLower(corsSettings.Vary), "origin"), POC: poc})
 		return
 	}
 
