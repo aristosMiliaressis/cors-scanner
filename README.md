@@ -5,20 +5,12 @@ cors-scanner
 | ------------- | -------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Capability    | preflight-support                      | OPTIONS                                                  | 2xx                                                                           |
 | Capability    | acao-subdomain-reflection              | Origin: https://nonexistent.target.com                   | Access-Control-Allow-Origin: https://nonexistent.target.com                   |
-| Capability    | acao-subdomain-lf-injection            | Origin: https://non`<\n>`existent.target.com             | Access-Control-Allow-Origin: https://non`<\n>`existent.target.com             |
-| Capability    | acao-subdomain-cr-injection            | Origin: https://non`<\r>`existent.target.com             | Access-Control-Allow-Origin: https://non`<\r>`existent.target.com             |
 | Capability    | acao-port-reflection                   | Origin: https://target.com:1337                          | Access-Control-Allow-Origin: https://target.com:1337                          |
-| Capability    | acao-port-lf-injection                 | Origin: https://target.com:13`<\n>`37                    | Access-Control-Allow-Origin: https://target.com:13`<\n>`37                    |
-| Capability    | acao-port-cr-injection                 | Origin: https://target.com:13`<\r>`37                    | Access-Control-Allow-Origin: https://target.com:13`<\r>`37                    |
 | Capability    | acao-wildcard                          |                                                          | Access-Control-Allow-Origin: *                                                |
 | Capability    | acah-wildcard                          |                                                          | Access-Control-Allow-Headers: *                                               |
 | Capability    | acam-wildcard                          |                                                          | Access-Control-Allow-Method: *                                                |
 | Capability    | acah-reflection                        | Access-Control-Request-Headers: x-test                   | Access-Control-Allow-Headers: x-test                                          |
 | Capability    | acam-reflection                        | Access-Control-Request-Method: test                      | Access-Control-Allow-Method: test                                             |
-| Capability    | acah-lf-injection                      | Access-Control-Request-Headers: te`<\n>`st               | Access-Control-Allow-Headers: te`<\n>`st                                      |
-| Capability    | acah-cr-injection                      | Access-Control-Request-Headers: te`<\r>`st               | Access-Control-Allow-Headers: te`<\r>`st                                      |
-| Capability    | acam-lf-injection                      | Access-Control-Request-Method: te`<\n>`st                | Access-Control-Allow-Method: te`<\n>`st                                       |
-| Capability    | acam-cr-injection                      | Access-Control-Request-Method: te`<\r>`st                | Access-Control-Allow-Method: te`<\r>`st                                       |
 | Capability    | acao-fixed                             |                                                          | Access-Control-Allow-Origin: `<fixed-value>`                                  |
 | Capability    | acam-fixed                             |                                                          | Access-Control-Allow-Method: `<fixed-value>`                                  |
 | Capability    | acah-fixed                             |                                                          | Access-Control-Allow-Headers: `<fixed-value>`                                 |
@@ -35,4 +27,11 @@ cors-scanner
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.com.evil.com                      | Access-Control-Allow-Origin: https://target.com.evil.com                      |
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.comevil.com                       | Access-Control-Allow-Origin: https://target.comevil.com                       |
 | Vulnerability | acao-suffix-bypass                     | Origin: https://target.com`<special_char>`.evil.com      | Access-Control-Allow-Origin: https://target.com`<special_char>`.evil.com      |
-
+| Vulnerability | acao-subdomain-lf-injection            | Origin: https://non`<\n>`existent.target.com             | Access-Control-Allow-Origin: https://non`<\n>`existent.target.com             |
+| Vulnerability | acao-subdomain-cr-injection            | Origin: https://non`<\r>`existent.target.com             | Access-Control-Allow-Origin: https://non`<\r>`existent.target.com             |
+| Vulnerability | acao-port-lf-injection                 | Origin: https://target.com:13`<\n>`37                    | Access-Control-Allow-Origin: https://target.com:13`<\n>`37                    |
+| Vulnerability | acao-port-cr-injection                 | Origin: https://target.com:13`<\r>`37                    | Access-Control-Allow-Origin: https://target.com:13`<\r>`37                    |
+| Vulnerability | acah-lf-injection                      | Access-Control-Request-Headers: te`<\n>`st               | Access-Control-Allow-Headers: te`<\n>`st                                      |
+| Vulnerability | acah-cr-injection                      | Access-Control-Request-Headers: te`<\r>`st               | Access-Control-Allow-Headers: te`<\r>`st                                      |
+| Vulnerability | acam-lf-injection                      | Access-Control-Request-Method: te`<\n>`st                | Access-Control-Allow-Method: te`<\n>`st                                       |
+| Vulnerability | acam-cr-injection                      | Access-Control-Request-Method: te`<\r>`st                | Access-Control-Allow-Method: te`<\r>`st                                       |
