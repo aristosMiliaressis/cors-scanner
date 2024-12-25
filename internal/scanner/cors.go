@@ -213,20 +213,20 @@ func (s *Scanner) testSubdomainReflectionBypass(method, origin string) {
 
 func (s *Scanner) testCRLFInjection(pos ReflectionPosition, method, origin string) {
 
-	chars := []rune{'\r', '\n'}
+	chars := []string{"\r", "\n", "%0d", "%0a", "%02%0d", "%02%0a", "%c0%8d", "%c0%8a"}
 	for _, char := range chars {
 		req, _ := http.NewRequest(method, s.Config.Url, nil)
 		switch pos {
 		case ACAO_SUBDOMAIN:
 			originUrl, _ := url.Parse(origin)
-			req.Header.Set("Origin", fmt.Sprintf("%s://ABCDE%sFGHIJ.%s", string(char), originUrl.Scheme, originUrl.Host))
+			req.Header.Set("Origin", fmt.Sprintf("%s://ABCDE%sFGHIJ.%s", char, originUrl.Scheme, originUrl.Host))
 		case ACAO_PORT:
 			originUrl, _ := url.Parse(origin)
-			req.Header.Set("Origin", fmt.Sprintf("%s://%s:13%s37", originUrl.Scheme, originUrl.Host, string(char)))
+			req.Header.Set("Origin", fmt.Sprintf("%s://%s:13%s37", originUrl.Scheme, originUrl.Host, char))
 		case ACAH:
-			req.Header.Set("Access-Control-Request-Headers", fmt.Sprintf("ABCDE%sFGHIJ", string(char)))
+			req.Header.Set("Access-Control-Request-Headers", fmt.Sprintf("ABCDE%sFGHIJ", char))
 		case ACAM:
-			req.Header.Set("Access-Control-Request-Method", fmt.Sprintf("ABCDE%sFGHIJ", string(char)))
+			req.Header.Set("Access-Control-Request-Method", fmt.Sprintf("ABCDE%sFGHIJ", char))
 		}
 
 		rawReq, _ := httputil.DumpRequest(req, true)
@@ -235,8 +235,12 @@ func (s *Scanner) testCRLFInjection(pos ReflectionPosition, method, origin strin
 
 		corsSettings := s.getCorsSettings(msg.Response)
 		responseBytes, _ := httputil.DumpResponse(msg.Response, false)
-		if strings.Contains(string(responseBytes), fmt.Sprintf("ABCDE%sFGHIJ", string(char))) ||
-			strings.Contains(string(responseBytes), fmt.Sprintf(":13%s37", string(char))) {
+		if strings.Contains(string(responseBytes), "ABCDE\rFGHIJ") ||
+			strings.Contains(string(responseBytes), "ABCDE\nFGHIJ") ||
+			strings.Contains(string(responseBytes), "ABCDE\r\nFGHIJ") ||
+			strings.Contains(string(responseBytes), ":13\r37") ||
+			strings.Contains(string(responseBytes), ":13\n37") ||
+			strings.Contains(string(responseBytes), ":13\r\n37") {
 
 			poc := fmt.Sprintf("%s\n---- ↑ Request ---- Response ↓ ----\n\n%s", string(rawReq), string(responseBytes))
 
