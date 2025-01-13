@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.1
 
 require (
-	github.com/aristosMiliaressis/httpc v0.0.0-20241113162150-099643585623
+	github.com/aristosMiliaressis/httpc v0.0.0-20250113093927-100e540d6cd7
 	github.com/projectdiscovery/goflags v0.1.25
 	github.com/projectdiscovery/gologger v1.1.12
 	golang.org/x/net v0.17.0
