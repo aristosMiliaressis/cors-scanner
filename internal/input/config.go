@@ -15,11 +15,12 @@ import (
 const version = "1.0.0"
 
 type Config struct {
-	Url        string
-	Origins    []string
-	Debug      bool
-	IncludePOC bool
-	Http       httpc.ClientOptions
+	Url         string
+	Origins     []string
+	Debug       bool
+	IncludePOC  bool
+	Http        httpc.ClientOptions
+	RequestFile string
 }
 
 func ParseCliFlags(git_hash string) (Config, error) {
@@ -41,6 +42,7 @@ func ParseCliFlags(git_hash string) (Config, error) {
 		flagSet.StringSliceVarP(&headers, "header", "H", nil, "Add request header.", goflags.FileStringSliceOptions),
 		flagSet.BoolVarP(&dfltOpts.Debug, "debug", "d", false, "Enable debug logging."),
 		flagSet.BoolVarP(&dfltOpts.IncludePOC, "poc", "p", false, "Include POC Request/Response in output."),
+		flagSet.StringVarP(&dfltOpts.RequestFile, "request-file", "req", "", "Raw request file."),
 	)
 
 	err := flagSet.Parse()
@@ -50,8 +52,15 @@ func ParseCliFlags(git_hash string) (Config, error) {
 
 	var u *url.URL
 	u, err = url.Parse(dfltOpts.Url)
-	if err != nil || strings.Contains(u.Hostname(), "*") ||
-		strings.HasSuffix(u.Hostname(), ".") || dfltOpts.Url == "" {
+
+	if dfltOpts.RequestFile != "" {
+		if _, err := os.Stat(dfltOpts.RequestFile); err != nil {
+			gologger.Fatal().Msgf("input: error while trying to access request file: %s", err)
+		}
+	}
+
+	if dfltOpts.RequestFile == "" && (err != nil || strings.Contains(u.Hostname(), "*") ||
+		strings.HasSuffix(u.Hostname(), ".") || dfltOpts.Url == "") {
 		return Config{}, fmt.Errorf("invalid url provided: %s", err)
 	}
 

@@ -1,11 +1,15 @@
 package scanner
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -17,6 +21,7 @@ import (
 
 type Scanner struct {
 	Client       httpc.HttpClient
+	BaseRequest  *http.Request
 	Config       input.Config
 	cancel       context.CancelFunc
 	corsSettings []CorsSettings
@@ -25,11 +30,39 @@ type Scanner struct {
 func NewScanner(conf input.Config) Scanner {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return Scanner{
+	scanner := Scanner{
 		Client: *httpc.NewHttpClient(conf.Http, ctx),
 		Config: conf,
 		cancel: cancel,
 	}
+
+	if conf.RequestFile != "" {
+		requestText, err := os.ReadFile(conf.RequestFile)
+		if err != nil {
+			gologger.Fatal().Msgf("input: error while trying to access request file: %s", err)
+		}
+
+		requestText = []byte(strings.Replace(string(requestText), "HTTP/2", "HTTP/1.1", 1))
+		reader := bufio.NewReader(bytes.NewReader(requestText))
+		baseRequest, err := http.ReadRequest(reader)
+		if err != nil {
+			gologger.Fatal().Msgf("input: error while parsing request: %s", err)
+		}
+
+		scanner.BaseRequest, _ = http.NewRequest(baseRequest.Method, conf.Url, baseRequest.Body)
+		for name, values := range baseRequest.Header {
+			scanner.BaseRequest.Header.Add(name, strings.Join(values, ","))
+		}
+	} else {
+		scanner.BaseRequest, _ = http.NewRequest("GET", conf.Url, nil)
+	}
+
+	newUrl, _ := url.Parse(conf.Url)
+	if newUrl.Scheme == "https" && newUrl.Port() == "443" || newUrl.Scheme == "http" && newUrl.Port() == "80" {
+		scanner.Config.Url = strings.Replace(conf.Url, regexp.MustCompile(":(80|443)").FindString(conf.Url), "", 1)
+	}
+
+	return scanner
 }
 
 func (s *Scanner) Scan() {
@@ -57,7 +90,8 @@ func (s *Scanner) Scan() {
 
 func (s *Scanner) testPreflightSupport() bool {
 
-	req, _ := http.NewRequest("OPTIONS", s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = "OPTIONS"
 	req.Header.Set("Origin", "https://example.com")
 
 	msg := s.GetResponse(req)
@@ -116,7 +150,8 @@ func (s *Scanner) testPortReflection(method, origin string) bool {
 	originUrl, _ := url.Parse(origin)
 	originUrl.Host = fmt.Sprintf("%s:1337", originUrl.Hostname())
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", originUrl.String())
 
 	msg := s.GetResponse(req)
@@ -145,7 +180,8 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 	originUrl, _ := url.Parse(origin)
 	suffixedOrigin := fmt.Sprintf("%s://%s.example.com", originUrl.Scheme, originUrl.Hostname())
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", suffixedOrigin)
 
 	msg := s.GetResponse(req)
@@ -160,7 +196,8 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 		return
 	}
 
-	req, _ = http.NewRequest(method, s.Config.Url, nil)
+	req = s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", "http://localhost.example.com")
 
 	msg = s.GetResponse(req)
@@ -175,7 +212,8 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 		return
 	}
 
-	req, _ = http.NewRequest(method, s.Config.Url, nil)
+	req = s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", "https://localhost.example.com")
 
 	msg = s.GetResponse(req)
@@ -202,7 +240,8 @@ func (s *Scanner) testSuffixReflectionBypass(method, origin string) {
 	wg := sync.WaitGroup{}
 
 	for _, char := range fuzzChars {
-		req, _ := http.NewRequest(method, s.Config.Url, nil)
+		req := s.BaseRequest.Clone(context.Background())
+		req.Method = method
 		req.Header.Set("Origin", fmt.Sprintf("%s://%s%s.%s", originUrl.Scheme, originUrl.Hostname(), string(char), originUrl.Hostname()))
 
 		wg.Add(1)
@@ -233,7 +272,8 @@ func (s *Scanner) testHttpOriginTrust(method, origin string) {
 	originUrl, _ := url.Parse(origin)
 	originUrl.Scheme = "http"
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", originUrl.String())
 
 	msg := s.GetResponse(req)
@@ -273,7 +313,8 @@ func (s *Scanner) testRegexDotBypass(method, origin string) {
 			newOrigin += "." + strings.Join(parts[(i+2):], ".")
 		}
 
-		req, _ := http.NewRequest(method, s.Config.Url, nil)
+		req := s.BaseRequest.Clone(context.Background())
+		req.Method = method
 		req.Header.Set("Origin", newOrigin)
 
 		msg := s.GetResponse(req)
@@ -371,7 +412,8 @@ func (s *Scanner) bruteforceOrigins() {
 func (s *Scanner) testOriginTrust(origin string) {
 	originUrl, _ := url.Parse(origin)
 
-	req, _ := http.NewRequest("GET", s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = "GET"
 	req.Header.Set("Origin", originUrl.String())
 
 	msg := s.GetResponse(req)

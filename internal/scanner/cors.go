@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -53,7 +54,8 @@ func (s *Scanner) getCorsSettings(resp *http.Response) CorsSettings {
 
 func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", "https://example.com")
 
 	msg := s.GetResponse(req)
@@ -74,7 +76,8 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 		}
 	}
 
-	req, _ = http.NewRequest(method, s.Config.Url, nil)
+	req = s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", "null")
 
 	msg = s.GetResponse(req)
@@ -95,9 +98,10 @@ func (s *Scanner) testArbitaryOriginTrust(method string) bool {
 func (s *Scanner) testSubdomainReflection(method, origin string) bool {
 
 	originUrl, _ := url.Parse(origin)
-	origin = fmt.Sprintf("%s://notexistent.%s", originUrl.Scheme, originUrl.Host)
+	origin = fmt.Sprintf("%s://notexistent.%s", originUrl.Scheme, originUrl.Hostname())
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", origin)
 
 	msg := s.GetResponse(req)
@@ -141,7 +145,8 @@ func (s *Scanner) testS3Trust(method string) {
 		go func() {
 			defer wg.Done()
 
-			req, _ := http.NewRequest(method, s.Config.Url, nil)
+			req := s.BaseRequest.Clone(context.Background())
+			req.Method = method
 			req.Header.Set("Origin", origin)
 
 			msg := s.GetResponse(req)
@@ -165,7 +170,8 @@ func (s *Scanner) testS3Trust(method string) {
 		go func() {
 			defer wg.Done()
 
-			req, _ := http.NewRequest(method, s.Config.Url, nil)
+			req := s.BaseRequest.Clone(context.Background())
+			req.Method = method
 			req.Header.Set("Origin", origin)
 
 			msg := s.GetResponse(req)
@@ -194,7 +200,8 @@ func (s *Scanner) testSubdomainReflectionBypass(method, origin string) {
 
 	origin = fmt.Sprintf("%s://notexistent%s", originUrl.Scheme, apexHostname)
 
-	req, _ := http.NewRequest(method, s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = method
 	req.Header.Set("Origin", origin)
 
 	msg := s.GetResponse(req)
@@ -215,7 +222,8 @@ func (s *Scanner) testCRLFInjection(pos ReflectionPosition, method, origin strin
 
 	chars := []string{"\r", "\n", "%0d", "%0a", "%02%0d", "%02%0a", "%c0%8d", "%c0%8a"}
 	for _, char := range chars {
-		req, _ := http.NewRequest(method, s.Config.Url, nil)
+		req := s.BaseRequest.Clone(context.Background())
+		req.Method = method
 		switch pos {
 		case ACAO_SUBDOMAIN:
 			originUrl, _ := url.Parse(origin)
@@ -256,7 +264,8 @@ func (s *Scanner) testRequestSendCapabilities() {
 		trustedOrigin = s.corsSettings[0].ACAO
 	}
 
-	req, _ := http.NewRequest("OPTIONS", s.Config.Url, nil)
+	req := s.BaseRequest.Clone(context.Background())
+	req.Method = "OPTIONS"
 	req.Header.Set("Origin", trustedOrigin)
 	req.Header.Set("Access-Control-Request-Method", "PUT")
 
@@ -278,7 +287,8 @@ func (s *Scanner) testRequestSendCapabilities() {
 		s.PrintResult(Result{Type: CAPABILITY, Name: "acam-fixed", Value: corsSettings.ACAM, AllowedCredentials: corsSettings.ACAC == "true", POC: poc})
 	}
 
-	req, _ = http.NewRequest("OPTIONS", s.Config.Url, nil)
+	req = s.BaseRequest.Clone(context.Background())
+	req.Method = "OPTIONS"
 	req.Header.Set("Origin", trustedOrigin)
 	req.Header.Set("Access-Control-Request-Headers", "x-test")
 
